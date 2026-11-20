@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Iniciar Sesión - ReservaCancha{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Iniciar Sesión</h5>
+            </div>
+            <div class="card-body">
+                <!-- Formulario de autenticación para clientes y administradores -->
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="correo" class="form-label">Correo electrónico</label>
+                        <input type="email" id="correo" name="correo" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Contraseña</label>
+                        <input type="password" id="password" name="password" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Entrar</button>
+                </form>
+                <hr>
+                <p class="small text-muted mb-0">
+                    ¿Cliente nuevo? <a href="{% url 'register' %}">Crea tu cuenta aquí</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

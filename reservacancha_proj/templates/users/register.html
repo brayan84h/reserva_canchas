@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Registro de Cliente - ReservaCancha{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Registro de Cliente</h5>
+            </div>
+            <div class="card-body">
+                <!-- Campos separados de forma atómica conforme al diseño normalizado en 3FN -->
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="primer_nombre" class="form-label">Primer Nombre *</label>
+                            <input type="text" id="primer_nombre" name="primer_nombre" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="segundo_nombre" class="form-label">Segundo Nombre</label>
+                            <input type="text" id="segundo_nombre" name="segundo_nombre" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="primer_apellido" class="form-label">Primer Apellido *</label>
+                            <input type="text" id="primer_apellido" name="primer_apellido" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="segundo_apellido" class="form-label">Segundo Apellido</label>
+                            <input type="text" id="segundo_apellido" name="segundo_apellido" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="telefono" class="form-label">Teléfono *</label>
+                            <input type="text" id="telefono" name="telefono" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="correo" class="form-label">Correo electrónico *</label>
+                            <input type="email" id="correo" name="correo" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Contraseña *</label>
+                        <input type="password" id="password" name="password" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Registrar Cliente</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

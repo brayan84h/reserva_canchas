@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Mis Reservas - ReservaCancha{% endblock %}
+
+{% block content %}
+<h4 class="mb-3">Mis Reservas</h4>
+
+<div class="table-responsive bg-white p-3 rounded shadow-sm">
+    <table class="table table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>#</th>
+                <th>Sucursal / Cancha</th>
+                <th>Fecha y Hora</th>
+                <th>Estado</th>
+                <th>Montos (L.)</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in reservas %}
+            <tr>
+                <td>{{ r.id_reserva }}</td>
+                <td><strong>{{ r.nombre_sucursal }}</strong><br><small>{{ r.cancha }}</small></td>
+                <td>
+                    {{ r.fecha_reserva }}<br>
+                    <span class="badge bg-secondary">{{ r.hora_inicio }} - {{ r.hora_fin }}</span>
+                </td>
+                <td><span class="badge bg-info text-dark">{{ r.estado }}</span></td>
+                <td>
+                    Total: {{ r.monto_acordado }}<br>
+                    <small class="text-success">Pagado: {{ r.total_pagado }}</small><br>
+                    <strong class="text-danger">Saldo: {{ r.saldo_pendiente }}</strong>
+                </td>
+                <td class="d-flex flex-wrap gap-1">
+                    {% if r.saldo_pendiente > 0 and r.estado|lower != 'cancelada' %}
+                        <button type="button" class="btn btn-sm btn-success"
+                                onclick="abrirPagoOnline({{ r.id_reserva }}, {{ r.saldo_pendiente }})">
+                            Pagar en línea
+                        </button>
+                    {% endif %}
+
+                    {% if r.puede_cancelar %}
+                        <form action="{% url 'cancelar_reserva_cliente' r.id_reserva %}" method="POST" class="d-inline"
+                              onsubmit="return confirm('¿Confirmas cancelar esta reserva? El horario quedará disponible nuevamente.');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Cancelar</button>
+                        </form>
+                    {% elif r.estado|lower != 'cancelada' %}
+                        <small class="text-muted">Cancelación solo con &ge; 3 días de anticipación</small>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">Aún no tienes reservas registradas.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal Pago en Línea -->
+<div class="modal fade" id="mdlPagoOnline" tabindex="-1">
+  <div class="modal-dialog">
+    <form id="formPagoOnline" method="POST" class="modal-content">
+      {% csrf_token %}
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">Pago en Línea</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+            <label class="form-label">Método de Pago</label>
+            <select name="id_metodo_pago" id="mp_online" class="form-select" required onchange="toggleCamposTarjeta()">
+                {% for m in metodos %}
+                <option value="{{ m.id_metodo_pago }}" data-nombre="{{ m.nombre|lower }}">{{ m.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-2">
+            <label class="form-label">Monto a pagar (L.)</label>
+            <input type="number" step="0.01" min="0.01" name="monto" id="monto_online" class="form-control" required>
+        </div>
+        <div id="campos_tarjeta">
+            <div class="mb-2">
+                <label class="form-label">Titular de la tarjeta</label>
+                <input type="text" name="titular_tarjeta" class="form-control" placeholder="Nombre en la tarjeta">
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-2">
+                    <label class="form-label">Últimos 4 dígitos</label>
+                    <input type="text" name="ultimos4" maxlength="4" class="form-control" placeholder="1234">
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="form-label">Banco / Emisor</label>
+                    <input type="text" name="banco_emisor" class="form-control" placeholder="Ej. BAC / Ficohsa">
+                </div>
+            </div>
+        </div>
+        <div class="mb-2">
+            <label class="form-label">N° Autorización / Referencia (opcional)</label>
+            <input type="text" name="numero_autorizacion" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-success">Confirmar Pago</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function abrirPagoOnline(idReserva, saldo) {
+    document.getElementById("formPagoOnline").action = `/mis-reservas/${idReserva}/pagar/`;
+    document.getElementById("monto_online").value = saldo;
+    document.getElementById("monto_online").max = saldo;
+    toggleCamposTarjeta();
+    new bootstrap.Modal(document.getElementById("mdlPagoOnline")).show();
+}
+
+function toggleCamposTarjeta() {
+    const sel = document.getElementById("mp_online");
+    const nombre = (sel.options[sel.selectedIndex]?.dataset.nombre || "");
+    const divTarjeta = document.getElementById("campos_tarjeta");
+    divTarjeta.style.display = nombre.includes("tarjeta") ? "block" : "none";
+}
+</script>
+{% endblock %}

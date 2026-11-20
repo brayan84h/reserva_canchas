@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+{% block title %}Panel Administrativo - ReservaCancha{% endblock %}
+
+{% block content %}
+<h4 class="mb-3">Panel Administrativo — {{ usuario.rol }}</h4>
+
+<!-- Tabla de Reservas -->
+<div class="table-responsive bg-white p-3 rounded shadow-sm">
+    <table class="table table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Sucursal / Cancha</th>
+                <th>Cliente</th>
+                <th>Fecha / Hora</th>
+                <th>Estado</th>
+                <th>Montos (L.)</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in reservas %}
+            <tr>
+                <td>{{ r.id_reserva }}</td>
+                <td><strong>{{ r.nombre_sucursal }}</strong><br><small>{{ r.cancha }}</small></td>
+                <td>{{ r.cliente_nombre }}</td>
+                <td>{{ r.fecha_reserva }}<br><span class="badge bg-secondary">{{ r.hora_inicio }} - {{ r.hora_fin }}</span></td>
+                <td><span class="badge bg-info text-dark">{{ r.estado }}</span></td>
+                <td>
+                    Total: {{ r.monto_acordado }}<br>
+                    <small class="text-success">Pagado: {{ r.total_pagado }}</small><br>
+                    <strong class="text-danger">Saldo: {{ r.saldo_pendiente }}</strong>
+                </td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="modalPago({{ r.id_reserva }}, {{ r.saldo_pendiente }})">Cobrar</button>
+                    <button type="button" class="btn btn-sm btn-warning" onclick="modalEstado({{ r.id_reserva }}, {{ r.id_estado_reserva }})">Estado</button>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="verAuditoria({{ r.id_reserva }})">Historial</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Crear Reserva desde Administración (Cliente Existente o Nuevo) -->
+<hr class="my-4">
+<h4 class="mb-3">Crear Reserva desde Administración</h4>
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form action="{% url 'crear_reserva_admin' %}" method="POST">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label d-block">Cliente</label>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="modo_cliente" id="mc_exist" value="existente" checked onchange="toggleClienteForm()">
+                    <label class="form-check-label" for="mc_exist">Cliente existente</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="modo_cliente" id="mc_nuevo" value="nuevo" onchange="toggleClienteForm()">
+                    <label class="form-check-label" for="mc_nuevo">Registrar cliente nuevo</label>
+                </div>
+            </div>
+
+            <div id="bloque_cliente_existente" class="mb-3">
+                <label class="form-label">Seleccionar Cliente</label>
+                <select name="id_cliente" class="form-select">
+                    {% for cl in clientes %}
+                    <option value="{{ cl.id_cliente }}">
+                        {{ cl.primer_nombre }} {{ cl.primer_apellido }} — {{ cl.correo }} ({{ cl.telefono }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="bloque_cliente_nuevo" class="row d-none mb-3">
+                <div class="col-md-3 mb-2">
+                    <label class="form-label">Primer Nombre *</label>
+                    <input type="text" name="primer_nombre" class="form-control">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label class="form-label">Segundo Nombre</label>
+                    <input type="text" name="segundo_nombre" class="form-control">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label class="form-label">Primer Apellido *</label>
+                    <input type="text" name="primer_apellido" class="form-control">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label class="form-label">Segundo Apellido</label>
+                    <input type="text" name="segundo_apellido" class="form-control">
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label class="form-label">Teléfono *</label>
+                    <input type="text" name="telefono" class="form-control">
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label class="form-label">Correo *</label>
+                    <input type="email" name="correo" class="form-control">
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label class="form-label">Contraseña inicial</label>
+                    <input type="password" name="password" class="form-control" placeholder="Por defecto: 123456">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <label class="form-label">Cancha</label>
+                    <select name="id_cancha" id="admin_id_cancha" class="form-select" required onchange="cargarHorariosAdmin()">
+                        <option value="">-- Seleccione --</option>
+                        {% for cr in canchas_reserva %}
+                        <option value="{{ cr.id_cancha }}">{{ cr.nombre_sucursal }} - {{ cr.cancha }} (L. {{ cr.precio_hora }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label class="form-label">Fecha</label>
+                    <input type="date" name="fecha_reserva" id="admin_fecha" class="form-control" required onchange="cargarHorariosAdmin()">
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label class="form-label">Horario Disponible</label>
+                    <select name="id_horario" id="admin_id_horario" class="form-select" required>
+                        <option value="">Seleccione cancha y fecha...</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary mt-2">Registrar Reserva</button>
+        </form>
+    </div>
+</div>
+
+{% if es_super_admin %}
+<hr class="my-4">
+<h4 class="mb-3">Empresas y Sucursales (Super Admin)</h4>
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white"><h6 class="mb-0">Nueva Empresa</h6></div>
+            <div class="card-body">
+                <form action="{% url 'crear_empresa' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <label class="form-label">Nombre Fiscal</label>
+                        <input type="text" name="nombre_fiscal" class="form-control" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">RTN / NIT</label>
+                        <input type="text" name="rtn_nit" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Correo de Contacto</label>
+                        <input type="email" name="correo_contacto" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-dark w-100">Guardar Empresa</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-secondary text-white"><h6 class="mb-0">Nueva Sucursal</h6></div>
+            <div class="card-body">
+                <form action="{% url 'crear_sucursal' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <label class="form-label">Empresa</label>
+                        <select name="id_empresa" class="form-select" required>
+                            {% for emp in empresas %}
+                            <option value="{{ emp.id_empresa }}">{{ emp.nombre_fiscal }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Nombre de Sucursal</label>
+                        <input type="text" name="nombre_sucursal" class="form-control" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Dirección</label>
+                        <input type="text" name="direccion" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Teléfono</label>
+                        <input type="text" name="telefono" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-secondary w-100">Guardar Sucursal</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Gestión de Canchas (Super Admin en cualquier sucursal; Admin Sucursal en su sede) -->
+<hr class="my-4">
+<h4 class="mb-3">Gestión de Canchas</h4>
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white"><h6 class="mb-0">Nueva Cancha</h6></div>
+            <div class="card-body">
+                <form action="{% url 'crear_cancha' %}" method="POST">
+                    {% csrf_token %}
+                    {% if es_super_admin %}
+                    <div class="mb-2">
+                        <label class="form-label">Sucursal</label>
+                        <select name="id_sucursal" class="form-select" required>
+                            {% for s in sucursales %}
+                            <option value="{{ s.id_sucursal }}">{{ s.nombre_sucursal }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div class="mb-2">
+                        <label class="form-label">Tipo de Cancha</label>
+                        <select name="id_tipo_cancha" class="form-select" required>
+                            {% for t in tipos_cancha %}
+                            <option value="{{ t.id_tipo_cancha }}">{{ t.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Nombre de Cancha</label>
+                        <input type="text" name="nombre" class="form-control" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Ubicación Interna</label>
+                        <input type="text" name="ubicacion_interna" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Precio por Hora (L.)</label>
+                        <input type="number" step="0.01" name="precio_hora" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Agregar Cancha</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8 mb-3">
+        <div class="table-responsive bg-white p-3 rounded shadow-sm">
+            <table class="table table-hover align-middle">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>ID</th>
+                        <th>Sucursal</th>
+                        <th>Cancha</th>
+                        <th>Tipo</th>
+                        <th>Precio/Hr</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cg in canchas_gestion %}
+                    <tr>
+                        <td>{{ cg.id_cancha }}</td>
+                        <td>{{ cg.nombre_sucursal }}</td>
+                        <td><strong>{{ cg.cancha }}</strong><br><small class="text-muted">{{ cg.ubicacion_interna|default:"-" }}</small></td>
+                        <td>{{ cg.tipo_deporte }}</td>
+                        <td>L. {{ cg.precio_hora }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Pago Admin -->
+<div class="modal fade" id="mdlPago" tabindex="-1">
+  <div class="modal-dialog">
+    <form action="{% url 'registrar_pago' %}" method="POST" class="modal-content">
+      {% csrf_token %}
+      <div class="modal-header"><h5 class="modal-title">Registrar Pago</h5></div>
+      <div class="modal-body">
+        <input type="hidden" name="id_reserva" id="pago_id_reserva">
+        <div class="mb-2">
+            <label class="form-label">Método de Pago</label>
+            <select name="id_metodo_pago" class="form-select" required>
+                {% for m in metodos %}
+                <option value="{{ m.id_metodo_pago }}">{{ m.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-2">
+            <label class="form-label">Monto</label>
+            <input type="number" step="0.01" name="monto" id="pago_monto" class="form-control" required>
+        </div>
+        <div class="mb-2">
+            <label class="form-label">N° Autorización (si aplica)</label>
+            <input type="text" name="numero_autorizacion" class="form-control">
+        </div>
+        <div class="mb-2">
+            <label class="form-label">Banco Emisor (si aplica)</label>
+            <input type="text" name="banco_emisor" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer"><button type="submit" class="btn btn-success">Guardar Pago</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Estado -->
+<div class="modal fade" id="mdlEstado" tabindex="-1">
+  <div class="modal-dialog">
+    <form action="{% url 'cambiar_estado' %}" method="POST" class="modal-content">
+      {% csrf_token %}
+      <div class="modal-header"><h5 class="modal-title">Cambiar Estado de Reserva</h5></div>
+      <div class="modal-body">
+        <input type="hidden" name="id_reserva" id="estado_id_reserva">
+        <div class="mb-2">
+            <label class="form-label">Estado</label>
+            <select name="id_estado_nuevo" id="estado_id_nuevo" class="form-select">
+                {% for e in estados %}
+                <option value="{{ e.id_estado_reserva }}">{{ e.nombre_estado }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-2">
+            <label class="form-label">Motivo del Cambio</label>
+            <textarea name="motivo" class="form-control" required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="submit" class="btn btn-primary">Actualizar</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Auditoría -->
+<div class="modal fade" id="mdlAuditoria" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Historial de Cambios (Auditoría)</h5></div>
+      <div class="modal-body" id="auditoria_body">Cargando...</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function modalPago(idReserva, saldo) {
+    document.getElementById("pago_id_reserva").value = idReserva;
+    document.getElementById("pago_monto").value = saldo;
+    new bootstrap.Modal(document.getElementById("mdlPago")).show();
+}
+
+function modalEstado(idReserva, idEstadoActual) {
+    document.getElementById("estado_id_reserva").value = idReserva;
+    document.getElementById("estado_id_nuevo").value = idEstadoActual;
+    new bootstrap.Modal(document.getElementById("mdlEstado")).show();
+}
+
+async function verAuditoria(idReserva) {
+    const modal = new bootstrap.Modal(document.getElementById("mdlAuditoria"));
+    const body = document.getElementById("auditoria_body");
+    body.innerHTML = "Consultando...";
+    modal.show();
+
+    const resp = await fetch(`/api/auditoria/${idReserva}/`);
+    const logs = await resp.json();
+    let html = '<ul class="list-group">';
+    logs.forEach(l => {
+        html += `<li class="list-group-item">
+            <strong>${l.fecha_cambio}</strong> — <em>${l.responsable}</em><br>
+            Estado: <code>${l.estado_anterior}</code> → <code>${l.estado_nuevo}</code><br>
+            <small class="text-muted">Motivo: ${l.motivo_cambio}</small>
+        </li>`;
+    });
+    html += "</ul>";
+    body.innerHTML = html;
+}
+
+function toggleClienteForm() {
+    const esNuevo = document.getElementById("mc_nuevo").checked;
+    document.getElementById("bloque_cliente_existente").classList.toggle("d-none", esNuevo);
+    document.getElementById("bloque_cliente_nuevo").classList.toggle("d-none", !esNuevo);
+}
+
+async function cargarHorariosAdmin() {
+    const idCancha = document.getElementById("admin_id_cancha").value;
+    const fecha = document.getElementById("admin_fecha").value;
+    const sel = document.getElementById("admin_id_horario");
+    if (!idCancha || !fecha) return;
+    sel.innerHTML = '<option value="">Cargando...</option>';
+    const resp = await fetch(`/api/disponibilidad/?id_cancha=${idCancha}&fecha=${fecha}`);
+    const datos = await resp.json();
+    sel.innerHTML = "";
+    if (!datos.length) {
+        sel.innerHTML = '<option value="">Sin horarios libres</option>';
+        return;
+    }
+    datos.forEach(h => {
+        const op = document.createElement("option");
+        op.value = h.id_horario;
+        op.textContent = `${h.inicio} - ${h.fin}`;
+        sel.appendChild(op);
+    });
+}
+</script>
+{% endblock %}
